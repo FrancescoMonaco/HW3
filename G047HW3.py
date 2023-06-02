@@ -2,6 +2,7 @@ from pyspark import SparkContext, SparkConf
 from pyspark.streaming import StreamingContext
 from pyspark import StorageLevel
 from statistics import median, mean
+from operator import add
 import threading
 import sys
 import numpy as np
@@ -27,17 +28,18 @@ def process_batch(time, batch, left, right, cols):
     batch_size = batch.count()
     streamLength[0] += batch_size
     # Extract the distinct items from the batch in range (left,right)
-    batch_items = batch.map(lambda s: (int(s), 1)).reduceByKey(lambda i1, i2: 1).collectAsMap()
+    batch_items = batch.map(lambda s: (int(s), 1)).reduceByKey(add).collectAsMap()
 
     # Update the streaming state
     for key in batch_items:
         if left <= int(key) <= right:
                 if key not in histogram:
-                    histogram[key] = 1
+                    histogram[key] = batch_items[key]
                 else:
-                    histogram[key] += 1
-                for i,row in enumerate(hash_vals):
-                    mat[i][hash(key, i, cols)] += hash(key, i, 1)*1
+                    histogram[key] += batch_items[key]
+                for place_i in range(batch_items[key]):
+                    for i,row in enumerate(hash_vals):
+                        mat[i][hash(key, i, cols)] += hash(key, i, 1)*1
 
     # If we wanted, here we could run some additional code on the global histogram
     if batch_size > 0:
@@ -154,7 +156,11 @@ if __name__ == '__main__':
             res.append(mat[i][hash(el, i, W)]*hash(el, i, 1))
         vals_med.append(median(res))
     vals_med = np.array(vals_med) 
-    second_moment_approx = sum(vals_med**2)/(sum_er**2)
+    #second_moment_approx = sum(vals_med**2)/(sum_er**2)
+    sec_moments = []
+    for i,row in enumerate(hash_vals):
+        sec_moments.append( sum(np.array(mat[i])**2) )
+    second_moment_approx = median(sec_moments)/(sum_er**2)
     sorted_vals = np.argsort(vals_sure)
 
     mean_are = []
@@ -165,3 +171,5 @@ if __name__ == '__main__':
 
     largest_item = max(histogram.keys())
     print("Largest item =", largest_item)
+    print("Exact second moment:", second_moment)
+    print("Approximated second moment:", second_moment_approx)
