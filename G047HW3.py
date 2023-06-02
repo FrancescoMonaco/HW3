@@ -8,25 +8,8 @@ import numpy as np
 import random as rand
 
 # After how many items should we stop?
-THRESHOLD = 10000000
+THRESHOLD = 1000000
 
-'''
-  # Variables definition
-    pi = 8191
-    C = # range of vals
-    global hash_vals = []
-    for i in range(n):
-        a = rand.randint(1, pi-1)
-        b = rand.randint(0, pi-1)
-        hash_vals.append((a,b))
-
-  # Function that calculates the hash
-    def hash(vertex,n):
-        return ((hash_vals[n][0]*vertex+hash_vals[n][1])%pi)%C
-
-# Count sketch matrix
-global mat = np.zeros((rows,cols))
-'''
 def hash(vertex,n,C):
         global hash_vals
         ret = ((hash_vals[n][0]*vertex+hash_vals[n][1])%pi)%C
@@ -38,25 +21,24 @@ def hash(vertex,n,C):
 # Operations to perform after receiving an RDD 'batch' at time 'time'
 def process_batch(time, batch, left, right, cols):
     global streamLength, histogram, mat, hash_vals
-  # Variables definition
+    # Variables definition
 
     # We are working on the batch at time `time`.
-
-
     batch_size = batch.count()
     streamLength[0] += batch_size
     # Extract the distinct items from the batch in range (left,right)
-    batch_items = batch.map(lambda s: (int(s), 1) if( left <= s <= right) else []).reduceByKey(lambda i1, i2: 1).collectAsMap()
+    batch_items = batch.map(lambda s: (int(s), 1)).reduceByKey(lambda i1, i2: 1).collectAsMap()
 
     # Update the streaming state
     for key in batch_items:
-        if key not in histogram:
-            histogram[key] = 1
-        else:
-            histogram[key] += 1
-        for i,row in enumerate(hash_vals):
-            mat[i][hash(key, i, cols)] += hash(key, i, 1)*1
-            
+        if left <= int(key) <= right:
+                if key not in histogram:
+                    histogram[key] = 1
+                else:
+                    histogram[key] += 1
+                for i,row in enumerate(hash_vals):
+                    mat[i][hash(key, i, cols)] += hash(key, i, 1)*1
+
     # If we wanted, here we could run some additional code on the global histogram
     if batch_size > 0:
         print("Batch size at time [{0}] is: {1}".format(time, batch_size))
@@ -169,16 +151,17 @@ if __name__ == '__main__':
     for el in histogram:
         res = []
         for i,row in enumerate(hash_vals):
-            res.append(hash[i][hash(el, i, cols)]*hash(el, i, 1))
+            res.append(mat[i][hash(el, i, W)]*hash(el, i, 1))
         vals_med.append(median(res))
+    vals_med = np.array(vals_med) 
     second_moment_approx = sum(vals_med**2)/(sum_er**2)
     sorted_vals = np.argsort(vals_sure)
 
     mean_are = []
     for sec in range(K):
-        mean_are.append( abs( second_moment[sorted_vals[sec]] - second_moment_approx[sorted_vals[sec]] )/second_moment[sorted_vals[sec]] )
+        mean_are.append( abs( vals_sure[sorted_vals[sec]] - vals_med[sorted_vals[sec]] )
+                            /vals_sure[sorted_vals[sec]] )
     mean_are = mean(mean_are)
 
     largest_item = max(histogram.keys())
     print("Largest item =", largest_item)
-    
