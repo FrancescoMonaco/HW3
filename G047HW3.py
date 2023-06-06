@@ -9,7 +9,7 @@ import numpy as np
 import random as rand
 
 # After how many items should we stop?
-THRESHOLD = 1000000
+THRESHOLD = 10000000
 
 def hash(vertex,n,C):
         global hash_vals
@@ -26,6 +26,8 @@ def process_batch(time, batch, left, right, cols):
 
     # We are working on the batch at time `time`.
     batch_size = batch.count()
+    if streamLength[0]>=THRESHOLD:
+        return
     streamLength[0] += batch_size
     # Extract the distinct items from the batch in range (left,right)
     batch_items = batch.map(lambda s: (int(s), 1)).reduceByKey(add).collectAsMap()
@@ -137,20 +139,20 @@ if __name__ == '__main__':
     ssc.stop(False, True)
     print("Streaming engine stopped")
 
-    # COMPUTE AND PRINT FINAL STATISTICS
-    print("Number of items processed =", streamLength[0])
-    print("Number of distinct items =", len(histogram))
+    # COMPUTE FINAL STATISTICS
     sum_er = 0
     vals_sure = []
     second_moment = 0
-    for el in histogram:
+        # Second Moment
+    for el in sorted(histogram):
         sum_er += histogram[el]
         second_moment += (histogram[el]**2)
-        vals_sure.append(histogram[el]**2)
+        vals_sure.append(abs(histogram[el]))
     second_moment = second_moment/(sum_er**2)
 
+        # Approx Sec Mom
     vals_med = []
-    for el in histogram:
+    for el in sorted(histogram):
         res = []
         for i,row in enumerate(hash_vals):
             res.append(mat[i][hash(el, i, W)]*hash(el, i, 1))
@@ -161,15 +163,30 @@ if __name__ == '__main__':
     for i,row in enumerate(hash_vals):
         sec_moments.append( sum(np.array(mat[i])**2) )
     second_moment_approx = median(sec_moments)/(sum_er**2)
-    sorted_vals = np.argsort(vals_sure)
+        # Get index sorting on the frequencies,
+        # we use the slice to obtain the descending order
+    sorted_vals = np.argsort(vals_sure)[::-1] 
 
+        # Avg err
     mean_are = []
     for sec in range(K):
-        mean_are.append( abs( vals_sure[sorted_vals[sec]] - vals_med[sorted_vals[sec]] )
+        mean_are.append( (abs( vals_sure[sorted_vals[sec]] - vals_med[sorted_vals[sec]] ))
                             /vals_sure[sorted_vals[sec]] )
     mean_are = mean(mean_are)
 
     largest_item = max(histogram.keys())
-    print("Largest item =", largest_item)
-    print("Exact second moment:", second_moment)
-    print("Approximated second moment:", second_moment_approx)
+
+    # Print section
+    print("D =", D, "W =", W, "[left,right] = [{},{}]".format(left,right),\
+          "K =", K, "Port =", portExp)
+    print("Total number of items =", streamLength[0])
+    print("Total number of items in [{},{}] =".format(left,right), sum_er)
+    print("Number of distinct items in [{},{}] =".format(left,right), len(histogram))
+    if K < 21:
+        for idx_ranger in range(K):
+            print("Item {} Freq = {} Est. Freq = {:.0f}".format( (sorted_vals[idx_ranger]+1),\
+                                                vals_sure[sorted_vals[idx_ranger]],\
+                                                vals_med[sorted_vals[idx_ranger]] ))
+
+    print("Avg err for top {} =".format(K), mean_are)
+    print("F2 {} F2 Estimate {}".format(second_moment,second_moment_approx))
