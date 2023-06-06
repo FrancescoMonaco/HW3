@@ -1,3 +1,9 @@
+'''
+HW3 - Group 47
+  Alessandro Lucchiari
+  Lorenzo Riccò
+  Francesco Pio Monaco
+'''
 from pyspark import SparkContext, SparkConf
 from pyspark.streaming import StreamingContext
 from pyspark import StorageLevel
