@@ -20,7 +20,7 @@ THRESHOLD = 10000000
 def hash(vertex,n,C):
         global hash_vals
         ret = ((hash_vals[n][0]*vertex+hash_vals[n][1])%pi)%C
-        if C == 1:
+        if C == 2:
             if ret == 0:
                 ret = -1
         return ret
@@ -47,7 +47,7 @@ def process_batch(time, batch, left, right, cols):
                     histogram[key] += batch_items[key]
                 for place_i in range(batch_items[key]):
                     for i,row in enumerate(hash_vals):
-                        mat[i][hash(key, i, cols)] += hash(key, i, 1)*1
+                        mat[i][hash(key, i, cols)] += hash(key, i, 2)*1
 
     # If we wanted, here we could run some additional code on the global histogram
     if batch_size > 0:
@@ -161,7 +161,7 @@ if __name__ == '__main__':
     for el in sorted(histogram):
         res = []
         for i,row in enumerate(hash_vals):
-            res.append(mat[i][hash(el, i, W)]*hash(el, i, 1))
+            res.append(mat[i][hash(el, i, W)]*hash(el, i, 2))
         vals_med.append(median(res))
     vals_med = np.array(vals_med) 
     #second_moment_approx = sum(vals_med**2)/(sum_er**2)
