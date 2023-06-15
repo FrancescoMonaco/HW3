@@ -49,9 +49,8 @@ def process_batch(time, batch, left, right, cols):
                     for i,row in enumerate(hash_vals):
                         mat[i][hash(key, i, cols)] += hash(key, i, 2)*1
 
-    # If we wanted, here we could run some additional code on the global histogram
-    if batch_size > 0:
-        print("Batch size at time [{0}] is: {1}".format(time, batch_size))
+    #if batch_size > 0:
+    #    print("Batch size at time [{0}] is: {1}".format(time, batch_size))
 
     if streamLength[0] >= THRESHOLD:
         stopping_condition.set()
